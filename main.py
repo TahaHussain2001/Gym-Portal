@@ -96,13 +96,17 @@ setup_health_routes(app)
 setup_global_exception_handlers(app)
 
 # Environment-specific CORS middleware
+cors_origins = ALLOWED_ORIGINS if ALLOWED_ORIGINS else ["http://localhost:8000", "http://127.0.0.1:8000"]
+allow_creds = True if "*" not in cors_origins else False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def seed_database(db: Session):
     # Seed Super Admin
@@ -2044,5 +2048,8 @@ def redirect_to_index():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting STHX Technologies Gym App on http://127.0.0.1:8000")
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting STHX Technologies Gym App on http://{host}:{port}")
+    uvicorn.run("main:app", host=host, port=port, reload=False)
+

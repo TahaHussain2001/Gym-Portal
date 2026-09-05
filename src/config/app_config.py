@@ -10,9 +10,17 @@ if os.path.exists(env_path):
                 key, val = line.split("=", 1)
                 os.environ[key.strip()] = val.strip().strip("'\"")
 
-JWT_SECRET = os.getenv("JWT_SECRET", "sthxtechnologies_super_secret_jwt_key_2026")
+ENVIRONMENT = os.getenv("ENVIRONMENT", os.getenv("ENV", "development")).lower()
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET or not JWT_SECRET.strip():
+    if ENVIRONMENT in ["production", "prod"]:
+        raise RuntimeError("JWT_SECRET environment variable is required in production environment.")
+    JWT_SECRET = "sthxtechnologies_super_secret_jwt_key_2026_dev_only"
+
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 1440  # 24 hours
+
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL or not DATABASE_URL.strip():
