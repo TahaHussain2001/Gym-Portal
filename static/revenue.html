@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Super Admin Dashboard — STHX Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Defaults: colors are driven by CSS variables applied from Appearance Settings */
+    :root{
+      --theme-bg: #060913;
+      --theme-surface: #0f1724;
+      --theme-surface-2: rgba(255,255,255,0.02);
+      --theme-muted: #94a3b8;
+      --theme-accent: #0066FF;
+      --theme-accent-2: #00F0FF;
+      --theme-text: #E6EEF6;
+      --glass-opa: 0.06;
+      --card-radius: 18px;
+      --shadow-strong: 0 10px 30px -10px rgba(0,0,0,0.6);
+    }
+
+    html,body{height:100%;}
+    body{background:var(--theme-bg);color:var(--theme-text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+
+    /* Layout */
+    .container { max-width:1400px; margin:0 auto; padding:24px; }
+    header.site { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    header .title { font-family: 'Montserrat', sans-serif; font-weight:800; font-size:20px; }
+    header .subtitle { color:var(--theme-muted); font-size:13px; }
+
+    /* Glass surface */
+    .glass {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--theme-surface) 60%, transparent), color-mix(in srgb, var(--theme-surface-2) 20%, transparent));
+      border-radius: var(--card-radius);
+      border: 1px solid color-mix(in srgb, var(--theme-accent) 12%, rgba(255,255,255,0.06));
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-strong);
+    }
+
+    /* KPI Grid */
+    .kpi-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:12px; }
+    @media(min-width:1024px){ .kpi-grid { grid-template-columns: repeat(7, 1fr); } }
+
+    .kpi-card { padding:16px; border-radius:12px; transition:transform .28s cubic-bezier(.2,.9,.2,1), box-shadow .28s; cursor:pointer; }
+    .kpi-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--theme-accent) 40%, transparent); }
+    .kpi-label { font-size:11px; color:var(--theme-muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .kpi-value { font-weight:800; margin-top:6px; font-size:20px; }
+    .kpi-spark { font-size:12px; color:var(--theme-accent-2); margin-left:8px; }
+
+    /* Hero */
+    .hero { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media(min-width:1024px){ .hero { grid-template-columns: 2fr 1fr; } }
+    .hero-plot { padding:20px; border-radius:18px; }
+    .hero-meta { padding:20px; border-radius:18px; display:flex; flex-direction:column; gap:10px; }
+
+    /* Summary list */
+    .summary-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px dashed rgba(255,255,255,0.02); }
+
+    /* Secondary charts */
+    .secondary { display:grid; grid-template-columns:1fr; gap:16px; }
+    @media(min-width:1024px){ .secondary { grid-template-columns: 2fr 1fr; } }
+    .panel { padding:18px; border-radius:14px; }
+
+    /* Lists */
+    .list-item { display:flex; justify-content:space-between; gap:12px; padding:12px; border-radius:10px; transition:background .18s, transform .18s; }
+    .list-item:hover { background: color-mix(in srgb, var(--theme-accent) 6%, transparent); transform: translateY(-4px); }
+
+    /* Footer */
+    footer.small { color:var(--theme-muted); font-size:12px; margin-top:6px; }
+
+    /* Tiny helpers */
+    .muted { color:var(--theme-muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="site">
+      <div>
+        <div class="title">Platform — Super Admin</div>
+        <div class="subtitle">Premium SaaS analytics • Theme-aware via Appearance Settings</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="btn-refresh" class="glass panel-button" style="padding:8px 12px; border-radius:10px; font-weight:700;">Refresh</button>
+        <a href="/" class="glass" style="padding:8px 12px; border-radius:10px; text-decoration:none; color:var(--theme-text);">Back</a>
+      </div>
+    </header>
+
+    <!-- KPI row -->
+    <section class="kpi-grid" style="margin-bottom:12px;">
+      <div id="kpi-total-revenue" class="glass kpi-card" data-role="kpi-total"></div>
+      <div id="kpi-this-month" class="glass kpi-card" data-role="kpi-month"></div>
+      <div id="kpi-total-gyms" class="glass kpi-card" data-role="kpi-gyms"></div>
+      <div id="kpi-active-gyms" class="glass kpi-card" data-role="kpi-active"></div>
+      <div id="kpi-suspended-gyms" class="glass kpi-card" data-role="kpi-suspended"></div>
+      <div id="kpi-total-owners" class="glass kpi-card" data-role="kpi-owners"></div>
+      <div id="kpi-new-gyms" class="glass kpi-card" data-role="kpi-new"></div>
+    </section>
+
+    <!-- Hero: Large chart + summary -->
+    <section class="hero">
+      <div class="glass hero-plot">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-weight:800;">Platform Revenue Trend</div>
+          <div class="muted">Last 12 months • PKR</div>
+        </div>
+        <div style="height:420px; display:flex; align-items:center;">
+          <canvas id="chart-revenue" style="width:100%; height:100%;"></canvas>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:12px;">
+          <div class="glass panel" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <div style="text-align:center;"><div class="muted">MoM Growth</div><div style="font-weight:800; margin-top:6px;" id="kpi-mom">—</div></div>
+          </div>
+          <div class="glass panel" style="width:220px; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <div style="text-align:center;"><div class="muted">Payment Methods</div><div id="kpi-methods" style="font-weight:800; margin-top:6px;">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="glass hero-meta">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-weight:800;">Revenue Summary</div>
+          <div class="muted">Updated live</div>
+        </div>
+        <div id="summary-list">
+          <!-- injected rows -->
+        </div>
+        <div style="margin-top:auto;">
+          <button id="btn-export" class="glass" style="padding:10px 12px; width:100%; font-weight:700; border-radius:12px;">Export CSV</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Secondary charts and lists -->
+    <section class="secondary" style="margin-top:14px;">
+      <div class="glass panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="font-weight:800;">Gyms Registered Per Month</div><div class="muted">Last 12 months</div></div>
+        <div style="height:260px;"><canvas id="chart-registrations" style="width:100%; height:100%;"></canvas></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="glass panel" style="padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="font-weight:800;">Revenue by Membership Plan</div><div class="muted">Monthly • 6-M • Yearly</div></div>
+          <div style="height:180px;"><canvas id="chart-plans" style="width:100%; height:100%;"></canvas></div>
+        </div>
+
+        <div class="glass panel" style="padding:12px;">
+          <div style="font-weight:800; margin-bottom:8px;">Recently Onboarded Gyms</div>
+          <div id="recent-gyms" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div class="glass panel" style="padding:12px;">
+          <div style="font-weight:800; margin-bottom:8px;">Memberships Approaching Expiry</div>
+          <div id="expiring-gyms" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="small muted">All visuals use CSS variables from Appearance Settings. Hover cards are interactive; click KPIs to drill later.</footer>
+  </div>
+
+  <script>
+  // Format PKR
+  function formatPKR(n){ return 'PKR ' + (Number(n)||0).toLocaleString(); }
+
+  async function applyPreferences(){
+    try{
+      const res = await fetch('/api/preferences');
+      if(!res.ok) return;
+      const prefs = await res.json();
+      const root = document.documentElement.style;
+      if(prefs.primary_color) root.setProperty('--theme-accent', prefs.primary_color);
+      if(prefs.accent_color) root.setProperty('--theme-accent-2', prefs.accent_color);
+      if(prefs.surface_color) root.setProperty('--theme-surface', prefs.surface_color);
+      if(prefs.background_color) root.setProperty('--theme-bg', prefs.background_color);
+      if(prefs.muted_color) root.setProperty('--theme-muted', prefs.muted_color);
+      if(prefs.text_color) root.setProperty('--theme-text', prefs.text_color);
+    }catch(e){ console.warn('prefs fetch failed', e); }
+  }
+
+  function cssVar(name, fallback){ const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
+
+  // Build gradient for Chart.js using CSS variables
+  function createGradient(ctx, colorVarFrom, colorVarTo){
+    const c1 = cssVar(colorVarFrom, '#0066FF');
+    const c2 = cssVar(colorVarTo, '#00F0FF');
+    const g = ctx.createLinearGradient(0,0,0,400);
+    g.addColorStop(0, c2 + '33');
+    g.addColorStop(1, 'transparent');
+    return { stroke: c1, fill: g };
+  }
+
+  async function loadDataAndRender(){
+    await applyPreferences();
+
+    // fetch revenue history
+    let revenueHistory = [];
+    try{ const r = await fetch('/api/revenue/history'); if(r.ok) revenueHistory = await r.json(); }catch(e){ console.warn(e); }
+    if (revenueHistory && revenueHistory.history) revenueHistory = revenueHistory.history;
+
+    // normalize last 12 months
+    const now = new Date(); const months = [];
+    for(let i=11;i>=0;i--){ const d = new Date(now.getFullYear(), now.getMonth()-i,1); const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; months.push({ key, label: d.toLocaleString(undefined,{month:'short', year:'numeric'}), total_revenue:0, payment_count:0 }); }
+    const map = Object.fromEntries(months.map(m=>[m.key,m]));
+    for(const r of revenueHistory){ let year=r.year||r.y; let monthNum=r.month||r.m; if(r.year_month_str){ const parts=r.year_month_str.split('-'); year=parts[0]; monthNum=parts[1]; } if(r.month_name && (!year || !monthNum)){ const d=new Date(r.month_name + ' 1'); year=d.getFullYear(); monthNum=d.getMonth()+1; } if(year && monthNum){ const key=`${year}-${String(monthNum).padStart(2,'0')}`; if(map[key]){ map[key].total_revenue = Number(r.total_revenue||r.total||r.amount||map[key].total_revenue); map[key].payment_count = Number(r.payment_count||r.count||map[key].payment_count); } }}
+    const ordered = months.map(m=>map[m.key]);
+
+    // fetch SA stats
+    let saStats = {};
+    try{ const r = await fetch('/api/super-admin/stats'); if(r.ok) saStats = await r.json(); }catch(e){ }
+
+    // Compute quick summary
+    let today = 0, week = 0, thisMonth = 0, thisYear = 0, all = 0;
+    for(const m of ordered){ thisMonth += m.total_revenue; thisYear += m.total_revenue; all += m.total_revenue; }
+    try{ const r = await fetch('/api/revenue/analytics'); if(r.ok){ const d=await r.json(); today=d.today_revenue||today; week=d.this_week_revenue||week; thisMonth=d.this_month_revenue||thisMonth; thisYear=d.this_year_revenue||thisYear; all=d.all_time_revenue||all; } }catch(e){}
+
+    // Populate KPI cards
+    document.querySelector('[data-role="kpi-total"]').innerHTML = `<div class="kpi-label">Total Revenue (All Time)</div><div class="kpi-value">${formatPKR(all)}</div>`;
+    document.querySelector('[data-role="kpi-month"]').innerHTML = `<div class="kpi-label">This Month</div><div class="kpi-value">${formatPKR(thisMonth)}</div>`;
+    document.querySelector('[data-role="kpi-gyms"]').innerHTML = `<div class="kpi-label">Total Gyms</div><div class="kpi-value">${saStats.total_gyms||0}</div>`;
+    document.querySelector('[data-role="kpi-active"]').innerHTML = `<div class="kpi-label">Active Gyms</div><div class="kpi-value">${saStats.active_gyms||0}</div>`;
+    document.querySelector('[data-role="kpi-suspended"]').innerHTML = `<div class="kpi-label">Suspended Gyms</div><div class="kpi-value">${saStats.suspended_gyms||0}</div>`;
+    document.querySelector('[data-role="kpi-owners"]').innerHTML = `<div class="kpi-label">Total Owners</div><div class="kpi-value">${saStats.total_owners||0}</div>`;
+    document.querySelector('[data-role="kpi-new"]').innerHTML = `<div class="kpi-label">New Gyms (30d)</div><div class="kpi-value">${saStats.new_gyms_this_month||0}</div>`;
+
+    // summary list
+    const summaryEl = document.getElementById('summary-list');
+    summaryEl.innerHTML = '';
+    const rows = [ ['Today', today], ['This Week', week], ['This Month', thisMonth], ['This Year', thisYear], ['All Time', all] ];
+    rows.forEach(r => { const el = document.createElement('div'); el.className='summary-row'; el.innerHTML = `<div class="muted">${r[0]}</div><div style="font-weight:800">${formatPKR(r[1])}</div>`; summaryEl.appendChild(el); });
+
+    // Charts
+    const accentVar = '--theme-accent'; const accent2Var='--theme-accent-2'; const mutedVar='--theme-muted';
+
+    // Revenue chart
+    const revCtx = document.getElementById('chart-revenue').getContext('2d');
+    const revG = createGradient(revCtx, accentVar, accent2Var);
+    if(window._revChart) window._revChart.destroy();
+    window._revChart = new Chart(revCtx, { type:'line', data:{ labels: ordered.map(o=>o.label), datasets:[{ label:'Revenue', data: ordered.map(o=>o.total_revenue), borderColor: revG.stroke, backgroundColor: revG.fill, fill:true, tension:0.35, pointRadius:4, pointBackgroundColor: cssVar(accent2Var,'#00F0FF') }] }, options:{ responsive:true, plugins:{ legend:{display:false}, tooltip:{mode:'index', intersect:false} }, scales:{ x:{ ticks:{ color: cssVar(mutedVar,'#94a3b8') } }, y:{ ticks:{ color: cssVar(mutedVar,'#94a3b8') } } } } });
+
+    // Registrations
+    const regCtx = document.getElementById('chart-registrations').getContext('2d');
+    const regG = createGradient(regCtx, accent2Var, accentVar);
+    if(window._regChart) window._regChart.destroy();
+    window._regChart = new Chart(regCtx, { type:'bar', data:{ labels: ordered.map(o=>o.label), datasets:[{ label:'Registrations', data: ordered.map(o=>o.payment_count||0), backgroundColor: cssVar(accentVar,'#0066FF') }] }, options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color: cssVar(mutedVar,'#94a3b8') } }, y:{ ticks:{ color: cssVar(mutedVar,'#94a3b8') } } } } });
+
+    // Plans donut
+    let planLabels=['Monthly','6-Month','Yearly']; let planValues=[0,0,0];
+    try{ const r = await fetch('/api/revenue/plan-distribution'); if(r.ok){ const d = await r.json(); planLabels = d.map(x=>x.plan||x.plan_name||x.label); planValues = d.map(x=> x.revenue||x.count||0); } }catch(e){}
+    const planCtx = document.getElementById('chart-plans').getContext('2d');
+    if(window._planChart) window._planChart.destroy();
+    window._planChart = new Chart(planCtx, { type:'doughnut', data:{ labels:planLabels, datasets:[{ data:planValues, backgroundColor: [ cssVar(accentVar,'#0066FF'), cssVar(accent2Var,'#00F0FF'), 'rgba(245,158,11,0.9)'] }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ color: cssVar(mutedVar,'#94a3b8') } } } } });
+
+    // Populate recent gyms
+    try{ const r = await fetch('/api/super-admin/gyms?limit=6&sort=created_desc'); if(r.ok){ const g = await r.json(); const el = document.getElementById('recent-gyms'); el.innerHTML=''; g.slice(0,6).forEach(gm=>{ const it=document.createElement('div'); it.className='list-item'; it.innerHTML = `<div><div style="font-weight:700">${gm.gym_name}</div><div class="muted">${gm.owner_name} • ${gm.email||''}</div></div><div class="muted">${gm.created_at?new Date(gm.created_at).toLocaleDateString():''}</div>`; el.appendChild(it); }); } }catch(e){ }
+
+    // Expiring
+    try{ const r = await fetch('/api/super-admin/gyms?expiring_in_days=30'); if(r.ok){ const g = await r.json(); const el = document.getElementById('expiring-gyms'); el.innerHTML=''; g.slice(0,6).forEach(gm=>{ const it=document.createElement('div'); it.className='list-item'; it.innerHTML=`<div><div style="font-weight:700">${gm.gym_name}</div><div class="muted">Exp: ${gm.subscription_expiry||'N/A'}</div></div><div class="muted">${gm.subscription_plan||''}</div>`; el.appendChild(it); }); } }catch(e){}
+
+    // small KPIs
+    try{ const analytics = await fetch('/api/revenue/analytics'); if(analytics.ok){ const a = await analytics.json(); document.getElementById('kpi-mom').innerText = (a.summary && a.summary.growth_percentage!==undefined) ? (String(a.summary.growth_percentage)+'%') : '—'; const methods = (a.charts && a.charts.payment_methods) ? a.charts.payment_methods.map(m=>m.method+':'+m.count).join(', ') : '—'; document.getElementById('kpi-methods').innerText = methods; }}catch(e){}
+
+  }
+
+  // helpers
+  function cssVar(name, fallback){ const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v||fallback; }
+  function createGradient(ctx, fromVar, toVar){ const c1=cssVar(fromVar,'#0066FF'); const c2=cssVar(toVar,'#00F0FF'); const g=ctx.createLinearGradient(0,0,0,400); g.addColorStop(0, hexWithOpacity(c2,0.28)); g.addColorStop(1, hexWithOpacity(c1,0.02)); return { stroke: c1, fill: g }; }
+  function hexWithOpacity(hex,opacity){ if(hex.startsWith('rgba')||hex.startsWith('rgb')) return hex; if(hex.length===4) hex = '#'+hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3]; const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${opacity})`; }
+
+  // actions
+  document.getElementById('btn-refresh').addEventListener('click', ()=>{ loadDataAndRender(); });
+  document.getElementById('btn-export').addEventListener('click', ()=>{ alert('Export not implemented in this static redesign — backend API required.'); });
+
+  // boot
+  loadDataAndRender();
+  </script>
+</body>
+</html>
