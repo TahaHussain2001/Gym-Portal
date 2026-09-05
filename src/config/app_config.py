@@ -14,7 +14,15 @@ JWT_SECRET = os.getenv("JWT_SECRET", "sthxtechnologies_super_secret_jwt_key_2026
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 1440  # 24 hours
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gym.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL or not DATABASE_URL.strip():
+    raise RuntimeError("DATABASE_URL environment variable is required. Please specify your Supabase PostgreSQL connection string in .env")
+
+DATABASE_URL = DATABASE_URL.strip()
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+
 
 raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000")
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]

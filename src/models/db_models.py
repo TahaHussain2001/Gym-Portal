@@ -3,9 +3,11 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, F
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from src.config.app_config import DATABASE_URL
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 class Gym(Base):
     __tablename__ = "gyms"
@@ -362,7 +364,8 @@ def init_db():
             except Exception:
                 pass
             # Set all existing users as verified so existing accounts work
-            conn.execute(text("UPDATE users SET is_verified = 1 WHERE is_verified IS NULL OR is_verified = 0"))
+            conn.execute(text("UPDATE users SET is_verified = true WHERE is_verified IS NULL"))
             conn.commit()
     except Exception:
         pass
+
