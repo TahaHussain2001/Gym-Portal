@@ -241,24 +241,27 @@ async def upload_background(
     current_user = Depends(get_current_user_auth)
 ):
     """Upload a custom background image for the current user's dashboard."""
-    ext = os.path.splitext(file.filename)[1].lower().strip(".")
-    if ext not in {"jpg", "jpeg", "png", "webp"}:
-        raise HTTPException(status_code=400, detail="Only JPG, JPEG, PNG, WEBP images are allowed.")
-    contents = await file.read()
-    if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File size exceeds 5 MB limit.")
-    bg_dir = os.path.join("static", "uploads", "backgrounds")
-    os.makedirs(bg_dir, exist_ok=True)
-    filename = f"bg_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
-    with open(os.path.join(bg_dir, filename), "wb") as f:
-        f.write(contents)
-    bg_url = f"/static/uploads/backgrounds/{filename}"
+    from src.services.file_service import FileSecurityService
+    from src.repositories.preferences_repo import PreferencesRepo
+
+    pref = PreferencesRepo.get(db, current_user.id)
+    if pref and pref.background_image:
+        FileSecurityService.delete_managed_object(pref.background_image)
+
+    bg_url = await FileSecurityService.validate_and_upload_scoped(file, "backgrounds", str(current_user.id))
     result = PreferencesRepo.save(db, current_user.id, background_image=bg_url)
     return {"message": "Background uploaded!", "preferences": result}
 
 @app.delete("/api/preferences/background")
 def remove_background(db: Session = Depends(get_db), current_user = Depends(get_current_user_auth)):
     """Remove the custom background for the current user."""
+    from src.services.file_service import FileSecurityService
+    from src.repositories.preferences_repo import PreferencesRepo
+
+    pref = PreferencesRepo.get(db, current_user.id)
+    if pref and pref.background_image:
+        FileSecurityService.delete_managed_object(pref.background_image)
+
     result = PreferencesRepo.remove_background(db, current_user.id)
     return {"message": "Background removed.", "preferences": result}
 
@@ -1877,40 +1880,18 @@ async def upload_super_admin_avatar(
     db: Session = Depends(get_db),
     current_user = Depends(require_super_admin)
 ):
-    # Validate file extension
-    ext = os.path.splitext(file.filename)[1].lower().strip(".")
-    allowed_exts = {"jpg", "jpeg", "png", "webp"}
-    if ext not in allowed_exts:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid image format. Allowed formats: {', '.join(allowed_exts).upper()}."
-        )
+    from src.services.file_service import FileSecurityService
+    old_avatar = current_user.avatar_url
+    if old_avatar:
+        FileSecurityService.delete_managed_object(old_avatar)
 
-    # Read content & check size limit (5MB)
-    contents = await file.read()
-    max_size_bytes = 5 * 1024 * 1024
-    if len(contents) > max_size_bytes:
-        raise HTTPException(
-            status_code=400,
-            detail="File size exceeds maximum allowed limit of 5 MB."
-        )
-
-    avatars_dir = os.path.join("static", "uploads", "avatars")
-    os.makedirs(avatars_dir, exist_ok=True)
-
-    filename = f"avatar_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
-    filepath = os.path.join(avatars_dir, filename)
-
-    with open(filepath, "wb") as f:
-        f.write(contents)
-
-    avatar_url = f"/static/uploads/avatars/{filename}"
+    avatar_url = await FileSecurityService.validate_and_upload_scoped(file, "profile-avatars", str(current_user.id))
     current_user.avatar_url = avatar_url
-    
+
     ip_addr = request.client.host if (request and request.client) else "127.0.0.1"
     AuditService.log_action(
         db, current_user.id, current_user.name, "SUPER_ADMIN_AVATAR_UPDATED",
-        f"Uploaded profile image: {filename}", ip_addr, commit=False
+        f"Uploaded profile image: {avatar_url}", ip_addr, commit=False
     )
 
     db.commit()
@@ -1953,41 +1934,29 @@ async def upload_company_logo(
     db: Session = Depends(get_db),
     current_user = Depends(require_super_admin)
 ):
-    ext = os.path.splitext(file.filename)[1].lower().strip(".")
-    allowed_exts = {"jpg", "jpeg", "png", "webp"}
-    if ext not in allowed_exts:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid image format. Allowed formats: JPG, JPEG, PNG, WEBP."
-        )
-
-    contents = await file.read()
-    if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File size exceeds the 5 MB limit.")
-
-    logos_dir = os.path.join("static", "uploads", "logos")
-    os.makedirs(logos_dir, exist_ok=True)
-
-    filename = f"company_logo_{int(datetime.utcnow().timestamp())}.{ext}"
-    filepath = os.path.join(logos_dir, filename)
-    with open(filepath, "wb") as f:
-        f.write(contents)
-
-    logo_url = f"/static/uploads/logos/{filename}"
-
     from src.repositories.settings_repo import SettingsRepo
+    from src.services.file_service import FileSecurityService
+
+    old_logo = SettingsRepo.get_setting(db, "company_logo_url")
+    if old_logo:
+        FileSecurityService.delete_managed_object(old_logo)
+
+    logo_url = await FileSecurityService.validate_and_upload_scoped(file, "gym-logos", "company")
     SettingsRepo.set_setting(db, "company_logo_url", logo_url)
 
     ip_addr = request.client.host if (request and request.client) else "127.0.0.1"
     AuditService.log_action(
         db, current_user.id, current_user.name,
-        "COMPANY_LOGO_UPLOADED", f"Uploaded company logo: {filename}", ip_addr
+        "COMPANY_LOGO_UPLOADED", f"Uploaded company logo: {logo_url}", ip_addr
     )
 
     return {"message": "Company logo uploaded successfully!", "company_logo_url": logo_url}
 
 # Mount static folders
-os.makedirs("static/uploads", exist_ok=True)
+try:
+    os.makedirs("static/uploads", exist_ok=True)
+except Exception:
+    pass
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")

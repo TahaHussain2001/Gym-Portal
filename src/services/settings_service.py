@@ -16,8 +16,10 @@ from src.services.audit_service import AuditService
 
 logger = logging.getLogger("sthxtechnologies-settings")
 
-UPLOAD_DIR = os.path.join("static", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(os.path.join("static", "uploads"), exist_ok=True)
+except Exception:
+    pass
 
 class SettingsService:
     @staticmethod
@@ -169,8 +171,12 @@ class SettingsService:
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        old_avatar = user.avatar_url
         from src.services.file_service import FileSecurityService
-        avatar_url = await FileSecurityService.validate_and_save_upload(file, upload_dir="static/uploads")
+        avatar_url = await FileSecurityService.validate_and_upload_scoped(file, "profile-avatars", str(user_id))
+
+        if old_avatar:
+            FileSecurityService.delete_managed_object(old_avatar)
 
         SettingsRepo.update_user_avatar(db, user_id, avatar_url)
         AuditService.log_action(db, user_id, user.name, "AVATAR_UPLOADED", f"Uploaded new profile avatar: {avatar_url}", ip_address)
@@ -191,6 +197,11 @@ class SettingsService:
         user = UserRepo.get_by_id(db, user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+
+        old_avatar = user.avatar_url
+        if old_avatar:
+            from src.services.file_service import FileSecurityService
+            FileSecurityService.delete_managed_object(old_avatar)
 
         SettingsRepo.update_user_avatar(db, user_id, None)
         AuditService.log_action(db, user_id, user.name, "AVATAR_REMOVED", "Removed profile avatar.", ip_address)
@@ -268,9 +279,14 @@ class SettingsService:
     @staticmethod
     async def upload_gym_logo(db: Session, user_id: int, file: UploadFile, ip_address: str = "127.0.0.1") -> dict:
         user = UserRepo.get_by_id(db, user_id)
+        gym_id = user.gym_id if (user and user.gym_id) else user_id
         
+        old_logo = SettingsRepo.get_setting(db, "gym_logo_url")
         from src.services.file_service import FileSecurityService
-        logo_url = await FileSecurityService.validate_and_save_upload(file, upload_dir="static/uploads")
+        logo_url = await FileSecurityService.validate_and_upload_scoped(file, "gym-logos", str(gym_id))
+
+        if old_logo:
+            FileSecurityService.delete_managed_object(old_logo)
 
         SettingsRepo.set_setting(db, "gym_logo_url", logo_url)
         AuditService.log_action(db, user_id, user.name if user else "Admin", "LOGO_UPLOADED", f"Uploaded new gym logo: {logo_url}", ip_address)
@@ -289,6 +305,11 @@ class SettingsService:
     @staticmethod
     def remove_gym_logo(db: Session, user_id: int, ip_address: str = "127.0.0.1") -> dict:
         user = UserRepo.get_by_id(db, user_id)
+        old_logo = SettingsRepo.get_setting(db, "gym_logo_url")
+        if old_logo:
+            from src.services.file_service import FileSecurityService
+            FileSecurityService.delete_managed_object(old_logo)
+
         SettingsRepo.set_setting(db, "gym_logo_url", "/static/sthx_technologies_logo.png")
         AuditService.log_action(db, user_id, user.name if user else "Admin", "LOGO_REMOVED", "Reset Gym logo to default.", ip_address)
         return {"message": "Gym logo reset to default.", "gym_logo_url": "/static/sthx_technologies_logo.png"}

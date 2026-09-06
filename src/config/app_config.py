@@ -36,3 +36,19 @@ raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 PASSWORD_REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+
+# Supabase Storage Configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+if not SUPABASE_URL and DATABASE_URL:
+    try:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(DATABASE_URL)
+        if parsed.username and "." in parsed.username:
+            proj_ref = parsed.username.split(".")[1]
+            SUPABASE_URL = f"https://{proj_ref}.supabase.co"
+    except Exception:
+        pass
+
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_KEY", "")).strip()
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "gym-assets").strip()
+
