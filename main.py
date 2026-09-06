@@ -1559,6 +1559,7 @@ def logout_all_devices(request: Request, db: Session = Depends(get_db), current_
     return {"message": "Logged out from all devices successfully."}
 
 @app.get("/api/settings/branding")
+@app.get("/settings/branding")
 def get_gym_branding(db: Session = Depends(get_db)):
     return SettingsService.get_gym_branding(db)
 
