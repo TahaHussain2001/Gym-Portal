@@ -2200,7 +2200,7 @@
 
       const [branding, setBranding] = useState({
         gym_name: "STHX Technologies",
-        gym_logo_url: "/static/sthx_technologies_logo.png"
+        gym_logo_url: "/static/STHX_Technologies_Mockup.svg"
       });
 
       useEffect(() => {
@@ -2611,7 +2611,7 @@
             <div className={`shrink-0 flex items-center ${effectiveCollapsed ? 'flex-col justify-center gap-3 pt-2' : 'justify-between gap-3 px-1 pb-3 border-b border-slate-800/80'}`}>
               <div className={`flex items-center ${effectiveCollapsed ? 'flex-col justify-center' : 'gap-3'} min-w-0 flex-1`}>
                 <img
-                  src={branding?.gym_logo_url || "/static/sthx_technologies_logo.png"}
+                  src={branding?.gym_logo_url || "/static/STHX_Technologies_Mockup.svg"}
                   alt="Gym Logo"
                   className={`${effectiveCollapsed ? 'w-10 h-10' : 'w-11 h-11'} rounded-2xl object-cover border border-brand-accent/40 shadow-lg shadow-blue-900/20 shrink-0 transition-all duration-300`}
                 />
@@ -6801,12 +6801,12 @@
           {/* Center Login Form Container */}
           <div className="w-full max-w-sm px-6 relative z-10 text-center space-y-6">
             
-            {/* Default Logo Image (my_logo.png) */}
+            {/* Default Logo Image (STHX_Technologies_Mockup.svg) */}
             <div className="relative inline-block mx-auto mb-1">
               <img
-                src="/static/my_logo.png"
+                src="/static/STHX_Technologies_Mockup.svg"
                 alt="STHX Technologies Official Logo"
-                className="w-24 h-24 rounded-2xl mx-auto shadow-[0_0_30px_rgba(255,255,255,0.12)] object-contain border border-slate-700/60 bg-slate-950/80 p-2.5 backdrop-blur-md transition-transform hover:scale-105"
+                className="w-28 h-28 rounded-2xl mx-auto shadow-[0_0_30px_rgba(255,255,255,0.12)] object-contain border border-slate-700/60 bg-slate-950/80 p-2 backdrop-blur-md transition-transform hover:scale-105"
               />
             </div>
 
@@ -7333,7 +7333,7 @@
       const [avatarUploading, setAvatarUploading] = useState(false);
 
       // Company Logo State
-      const [companyLogoUrl, setCompanyLogoUrl] = useState("/static/sthx_technologies_logo.png");
+      const [companyLogoUrl, setCompanyLogoUrl] = useState("/static/STHX_Technologies_Mockup.svg");
       const [selectedLogoFile, setSelectedLogoFile] = useState(null);
       const [logoPreview, setLogoPreview] = useState(null);
       const [logoUploading, setLogoUploading] = useState(false);
@@ -10310,7 +10310,7 @@
                 <div id="printable-saas-receipt" className="bg-white text-slate-900 p-4 sm:p-5 rounded-2xl shadow-xl space-y-3.5 font-sans border border-slate-200">
                   {/* STHX Technologies Header */}
                   <div className="text-center border-b border-slate-200 pb-4 space-y-1">
-                    <img src="/static/sthx_technologies_logo.png" alt="STHX Technologies Logo" className="h-12 mx-auto object-contain mb-1" onError={(e) => e.target.style.display='none'} />
+                    <img src="/static/STHX_Technologies_Mockup.svg" alt="STHX Technologies Logo" className="h-12 mx-auto object-contain mb-1" onError={(e) => e.target.style.display='none'} />
                     <h2 className="text-xl font-extrabold uppercase tracking-wide text-slate-900 font-montserrat">STHX TECHNOLOGIES</h2>
                     <p className="text-xs text-slate-600 font-semibold">Gym Management SaaS Platform Portal</p>
                     <p className="text-[11px] text-slate-500">Official Platform Subscription Fee Payment Receipt</p>

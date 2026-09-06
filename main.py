@@ -1924,7 +1924,7 @@ def change_password(req: ChangePasswordRequest, request: Request, db: Session = 
 @app.get("/api/super-admin/company-logo")
 def get_company_logo(db: Session = Depends(get_db), current_user = Depends(require_super_admin)):
     from src.repositories.settings_repo import SettingsRepo
-    logo_url = SettingsRepo.get_setting(db, "company_logo_url") or "/static/sthx_technologies_logo.png"
+    logo_url = SettingsRepo.get_setting(db, "company_logo_url") or "/static/STHX_Technologies_Mockup.svg"
     return {"company_logo_url": logo_url}
 
 @app.post("/api/super-admin/company-logo")

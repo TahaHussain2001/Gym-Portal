@@ -310,9 +310,9 @@ class SettingsService:
             from src.services.file_service import FileSecurityService
             FileSecurityService.delete_managed_object(old_logo)
 
-        SettingsRepo.set_setting(db, "gym_logo_url", "/static/sthx_technologies_logo.png")
+        SettingsRepo.set_setting(db, "gym_logo_url", "/static/STHX_Technologies_Mockup.svg")
         AuditService.log_action(db, user_id, user.name if user else "Admin", "LOGO_REMOVED", "Reset Gym logo to default.", ip_address)
-        return {"message": "Gym logo reset to default.", "gym_logo_url": "/static/sthx_technologies_logo.png"}
+        return {"message": "Gym logo reset to default.", "gym_logo_url": "/static/STHX_Technologies_Mockup.svg"}
 
     # ==========================================================================
     # System Settings Services (Admin Only)

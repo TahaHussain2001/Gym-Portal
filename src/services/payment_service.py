@@ -46,7 +46,7 @@ class PaymentService:
         # Fetch Gym Branding Settings
         settings = SettingsRepo.get_all_settings(db)
         gym_name = settings.get("gym_name", "STHX Gym & Fitness Club")
-        gym_logo_url = settings.get("gym_logo_url", "/static/sthx_technologies_logo.png")
+        gym_logo_url = settings.get("gym_logo_url", "/static/STHX_Technologies_Mockup.svg")
         gym_address = settings.get("gym_address", "Main Commercial Area")
         gym_phone = settings.get("gym_phone", "+92 300 0000000")
         gym_email = settings.get("gym_email", "support@sthxtechnologies.com")
