@@ -110,7 +110,9 @@ app.add_middleware(
 
 def seed_database(db: Session):
     # Seed Super Admin
-    super_admin = db.query(User).filter(User.email == "superadmin@sthxtechnologies.com").first()
+    super_admin = db.query(User).filter(User.email == "sthxtechnologies@gmail.com").first()
+    if not super_admin:
+        super_admin = db.query(User).filter(User.email == "superadmin@sthxtechnologies.com").first()
     if not super_admin:
         super_admin = db.query(User).filter(User.username == "superadmin").first()
     if not super_admin:
@@ -118,19 +120,21 @@ def seed_database(db: Session):
         super_admin = User(
             name="Super Admin",
             username="superadmin",
-            email="superadmin@sthxtechnologies.com",
+            email="sthxtechnologies@gmail.com",
             password=hashed,
             role=ROLE_SUPER_ADMIN,
             is_verified=True
         )
         db.add(super_admin)
         db.commit()
-        logger.info("Super Admin seeded: superadmin@sthxtechnologies.com / superadmin123")
+        logger.info("Super Admin seeded: sthxtechnologies@gmail.com")
     else:
+        super_admin.email = "sthxtechnologies@gmail.com"
         super_admin.failed_login_attempts = 0
         super_admin.lockout_until = None
         super_admin.is_verified = True
         db.commit()
+
 
 
 def get_db():
