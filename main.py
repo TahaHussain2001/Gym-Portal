@@ -245,8 +245,8 @@ async def upload_background(
     from src.repositories.preferences_repo import PreferencesRepo
 
     pref = PreferencesRepo.get(db, current_user.id)
-    if pref and pref.background_image:
-        FileSecurityService.delete_managed_object(pref.background_image)
+    if pref and isinstance(pref, dict) and pref.get("background_image"):
+        FileSecurityService.delete_managed_object(pref["background_image"])
 
     bg_url = await FileSecurityService.validate_and_upload_scoped(file, "backgrounds", str(current_user.id))
     result = PreferencesRepo.save(db, current_user.id, background_image=bg_url)
@@ -259,8 +259,8 @@ def remove_background(db: Session = Depends(get_db), current_user = Depends(get_
     from src.repositories.preferences_repo import PreferencesRepo
 
     pref = PreferencesRepo.get(db, current_user.id)
-    if pref and pref.background_image:
-        FileSecurityService.delete_managed_object(pref.background_image)
+    if pref and isinstance(pref, dict) and pref.get("background_image"):
+        FileSecurityService.delete_managed_object(pref["background_image"])
 
     result = PreferencesRepo.remove_background(db, current_user.id)
     return {"message": "Background removed.", "preferences": result}
