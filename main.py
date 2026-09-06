@@ -132,60 +132,6 @@ def seed_database(db: Session):
         super_admin.is_verified = True
         db.commit()
 
-    # Seed Default Gym & Gym Owner if missing
-    default_gym = db.query(Gym).filter(Gym.email == "gymowner@sthxtechnologies.com").first()
-    if not default_gym:
-        default_gym = db.query(Gym).first()
-    if not default_gym:
-        default_gym = Gym(
-            gym_name="STHX Fitness Club",
-            owner_name="Shaikh Taha",
-            email="gymowner@sthxtechnologies.com",
-            phone="03001234567",
-            cnic="42101-1234567-1",
-            address="Main Boulevard, Gulberg, Lahore",
-            subscription_plan="Monthly",
-            subscription_expiry=(date.today() + timedelta(days=365)).isoformat(),
-            status="Active"
-        )
-        db.add(default_gym)
-        db.commit()
-        db.refresh(default_gym)
-
-    owner_user = db.query(User).filter(User.email == "gymowner@sthxtechnologies.com").first()
-    if not owner_user:
-        hashed_owner = hash_password("owner123")
-        owner_user = User(
-            name="Shaikh Taha",
-            username="gymowner",
-            email="gymowner@sthxtechnologies.com",
-            password=hashed_owner,
-            role=ROLE_GYM_OWNER,
-            gym_name=default_gym.gym_name,
-            gym_id=default_gym.id,
-            phone="03001234567",
-            cnic="42101-1234567-1",
-            is_verified=True
-        )
-        db.add(owner_user)
-        db.commit()
-        logger.info("Initial Gym Owner seeded: gymowner@sthxtechnologies.com / owner123")
-    else:
-        owner_user.failed_login_attempts = 0
-        owner_user.lockout_until = None
-        owner_user.is_verified = True
-        if not owner_user.gym_id:
-            owner_user.gym_id = default_gym.id
-            owner_user.gym_name = default_gym.gym_name
-        db.commit()
-
-
-    # Run platform revenue history backfill/seed
-    try:
-        RevenueService.backfill_or_seed_platform_revenue(db)
-        logger.info("Platform Revenue History backfill/seed completed successfully.")
-    except Exception as e:
-        logger.error(f"Failed to backfill/seed Platform Revenue History: {e}")
 
 def get_db():
     db = SessionLocal()
@@ -378,11 +324,12 @@ class VerifyResetOTPRequest(BaseModel):
     code: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
-    email: str
-    otp: Optional[str] = None
-    code: Optional[str] = None
+    token: Optional[str] = None
+    reset_token: Optional[str] = None
+    email: Optional[str] = None
     new_password: str
-    confirm_password: str
+    confirm_password: Optional[str] = None
+
 
 class SuperAdminForgotPasswordRequest(BaseModel):
     email: str
@@ -468,35 +415,23 @@ def resend_verification_code(req: ResendOTPRequest, db: Session = Depends(get_db
 
 @app.post("/api/auth/forgot-password", dependencies=[Depends(limit_auth_requests)])
 @app.post("/auth/forgot-password", dependencies=[Depends(limit_auth_requests)])
-def forgot_password():
-    raise HTTPException(
-        status_code=403,
-        detail="Self-service password recovery is disabled. Please contact STHX Technologies Super Admin for assistance."
-    )
-
-@app.post("/api/auth/verify-reset-otp", dependencies=[Depends(limit_auth_requests)])
-@app.post("/auth/verify-reset-otp", dependencies=[Depends(limit_auth_requests)])
-def verify_reset_otp():
-    raise HTTPException(
-        status_code=403,
-        detail="Self-service password recovery is disabled. Please contact STHX Technologies Super Admin for assistance."
-    )
-
-@app.post("/api/auth/resend-reset-otp", dependencies=[Depends(limit_auth_requests)])
-@app.post("/auth/resend-reset-otp", dependencies=[Depends(limit_auth_requests)])
-def resend_reset_otp():
-    raise HTTPException(
-        status_code=403,
-        detail="Self-service password recovery is disabled. Please contact STHX Technologies Super Admin for assistance."
-    )
+def forgot_password(req: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    base_url = "https://gym-portal-self.vercel.app"
+    if request.headers.get("origin"):
+        base_url = request.headers.get("origin").rstrip("/")
+    elif request.base_url:
+        base_url = str(request.base_url).rstrip("/")
+    return AuthService.forgot_password(db, req.email, base_url)
 
 @app.post("/api/auth/reset-password", dependencies=[Depends(limit_auth_requests)])
 @app.post("/auth/reset-password", dependencies=[Depends(limit_auth_requests)])
-def reset_password():
-    raise HTTPException(
-        status_code=403,
-        detail="Self-service password recovery is disabled. Please contact STHX Technologies Super Admin for assistance."
-    )
+def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    token = req.token or req.reset_token or ""
+    if not token:
+        raise HTTPException(status_code=400, detail="Reset token is required.")
+    confirm_pwd = req.confirm_password if req.confirm_password else req.new_password
+    return AuthService.reset_password_with_token(db, token, req.new_password, confirm_pwd)
+
 
 @app.post("/api/super-admin/auth/forgot-password", dependencies=[Depends(limit_auth_requests)])
 def super_admin_forgot_password(req: SuperAdminForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):

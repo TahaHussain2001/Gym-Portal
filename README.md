@@ -112,7 +112,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # Database Connection
-DATABASE_URL="postgresql://sthx_user:SecurePass2026!@localhost:5432/sthx_gym_db"
+DATABASE_URL="postgresql://<user>:<password>@<host>:<port>/<dbname>"
+
 
 # Redis Cache & Rate Limiting
 REDIS_URL="redis://localhost:6379/0"
@@ -166,7 +167,7 @@ sudo apt update && sudo apt install -y python3-pip python3-venv postgresql postg
 ### Step 2: PostgreSQL Setup
 ```sql
 CREATE DATABASE sthx_gym_db;
-CREATE USER sthx_user WITH PASSWORD 'SecurePass2026!';
+CREATE USER sthx_user WITH PASSWORD '<YOUR_DB_PASSWORD>';
 GRANT ALL PRIVILEGES ON DATABASE sthx_gym_db TO sthx_user;
 ```
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from src.config.app_config import PASSWORD_REGEX
-from src.models.db_models import User, Gym, RefreshToken, LoginHistory, OTPCode
+from src.models.db_models import User, Gym, RefreshToken, LoginHistory, OTPCode, PasswordResetToken
 from src.repositories.user_repo import UserRepo
 from src.repositories.otp_repo import OTPRepo
 from src.utils.helpers import hash_password, verify_password, create_access_token, create_refresh_token, decode_access_token
@@ -350,60 +350,45 @@ class AuthService:
         return {"message": "Logged out successfully from all active devices."}
 
     @staticmethod
-    def forgot_password(db: Session, email: str) -> dict:
+    def forgot_password(db: Session, email: str, base_url: str = "") -> dict:
         email = email.lower().strip()
         user = UserRepo.get_by_email(db, email)
-        
+
         # Always return generic message to prevent account enumeration
-        generic_message = "If an account exists, a verification code has been sent."
+        generic_message = "If an account exists for this email, a password reset link has been sent."
 
         if user:
-            recent_resends = OTPRepo.get_recent_resends_count_hourly(db, email, "PASSWORD_RESET")
-            if recent_resends < MAX_RESEND_HOURLY:
-                otp_code = f"{secrets.randbelow(900000) + 100000}"
-                OTPRepo.create_otp(
-                    db=db,
-                    email=email,
-                    otp=otp_code,
-                    purpose="PASSWORD_RESET",
-                    user_id=user.id,
-                    expires_in_minutes=OTP_EXPIRY_MINUTES
-                )
-                EmailService.send_otp_email(email, otp_code, purpose="PASSWORD_RESET")
+            # Invalidate previous unused reset tokens for this user
+            db.query(PasswordResetToken).filter(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.is_used == False
+            ).update({"is_used": True})
+
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+
+            reset_record = PasswordResetToken(
+                user_id=user.id,
+                email=user.email,
+                token_hash=token_hash,
+                expires_at=expires_at,
+                is_used=False
+            )
+            db.add(reset_record)
+            db.commit()
+
+            target_base = (base_url or "https://gym-portal-self.vercel.app").rstrip("/")
+            reset_url = f"{target_base}/?reset_token={raw_token}"
+
+            EmailService.send_password_reset_email(user.email, user.name, reset_url)
 
         return {"message": generic_message}
 
     @staticmethod
-    def verify_reset_otp(db: Session, email: str, otp: str) -> dict:
-        email = email.lower().strip()
-        active_otp = OTPRepo.get_active_otp(db, email, "PASSWORD_RESET")
-
-        if not active_otp:
-            raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
-
-        if datetime.utcnow() > active_otp.expires_at:
-            OTPRepo.mark_as_used(db, active_otp)
-            raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
-
-        if active_otp.attempts >= MAX_OTP_ATTEMPTS:
-            OTPRepo.mark_as_used(db, active_otp)
-            raise HTTPException(status_code=400, detail="Maximum attempts (5) exceeded. Please request a new code.")
-
-        # Constant-time comparison
-        if not secrets.compare_digest(active_otp.otp.strip(), otp.strip()):
-            OTPRepo.increment_attempts(db, active_otp)
-            remaining = MAX_OTP_ATTEMPTS - active_otp.attempts
-            raise HTTPException(status_code=400, detail=f"Invalid verification code. {remaining} attempt(s) remaining.")
-
-        return {"message": "Verification code verified successfully."}
-
-    @staticmethod
-    def resend_reset_otp(db: Session, email: str) -> dict:
-        return AuthService.forgot_password(db, email)
-
-    @staticmethod
-    def reset_password(db: Session, email: str, otp: str, new_password: str, confirm_password: str) -> dict:
-        email = email.lower().strip()
+    def reset_password_with_token(db: Session, token: str, new_password: str, confirm_password: str) -> dict:
+        if not token or not token.strip():
+            raise HTTPException(status_code=400, detail="This password reset link is invalid or has expired.")
 
         if new_password != confirm_password:
             raise HTTPException(status_code=400, detail="Passwords do not match.")
@@ -414,37 +399,34 @@ class AuthService:
                 detail="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
             )
 
-        active_otp = OTPRepo.get_active_otp(db, email, "PASSWORD_RESET")
-        if not active_otp:
-            raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+        token_hash = hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
+        token_record = db.query(PasswordResetToken).filter(
+            PasswordResetToken.token_hash == token_hash,
+            PasswordResetToken.is_used == False
+        ).first()
 
-        if datetime.utcnow() > active_otp.expires_at:
-            OTPRepo.mark_as_used(db, active_otp)
-            raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
+        if not token_record:
+            raise HTTPException(status_code=400, detail="This password reset link is invalid or has expired.")
 
-        if active_otp.attempts >= MAX_OTP_ATTEMPTS:
-            OTPRepo.mark_as_used(db, active_otp)
-            raise HTTPException(status_code=400, detail="Maximum attempts (5) exceeded. Please request a new code.")
+        if datetime.utcnow() > token_record.expires_at:
+            token_record.is_used = True
+            db.commit()
+            raise HTTPException(status_code=400, detail="This password reset link is invalid or has expired.")
 
-        # Constant-time comparison
-        if not secrets.compare_digest(active_otp.otp.strip(), otp.strip()):
-            OTPRepo.increment_attempts(db, active_otp)
-            remaining = MAX_OTP_ATTEMPTS - active_otp.attempts
-            raise HTTPException(status_code=400, detail=f"Invalid verification code. {remaining} attempt(s) remaining.")
-
-        user = UserRepo.get_by_email(db, email)
+        user = db.query(User).filter(User.id == token_record.user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User account not found.")
+            raise HTTPException(status_code=400, detail="This password reset link is invalid or has expired.")
 
-        # Reset password and revoke all active refresh tokens for all devices
+        # Update password, invalidate token, and revoke active sessions across devices
         user.password = hash_password(new_password)
-        OTPRepo.mark_as_used(db, active_otp, commit=False)
+        token_record.is_used = True
         AuthService.logout_all_devices(db, user.id)
 
-        AuditService.log_action(db, user.id, user.name, "PASSWORD_RESET", "Account password reset completed via OTP verification.", commit=False)
+        AuditService.log_action(db, user.id, user.name, "PASSWORD_RESET_SUCCESS", "Account password reset completed using email link token.", commit=False)
         db.commit()
 
-        return {"message": "Password reset successfully! All existing active sessions have been logged out. Please log in with your new password."}
+        return {"message": "Your password has been reset successfully. You can now log in."}
+
 
     @staticmethod
     def super_admin_forgot_password(db: Session, email: str, ip_address: str = "127.0.0.1") -> dict:

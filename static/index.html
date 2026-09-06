@@ -2319,9 +2319,39 @@
         });
       };
 
+      const [resetToken, setResetToken] = useState(() => {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          let t = urlParams.get("reset_token") || urlParams.get("token");
+          if (!t && window.location.hash) {
+            const hashStr = window.location.hash.replace("#", "");
+            if (hashStr.includes("token=") || hashStr.includes("reset_token=")) {
+              const hashParams = new URLSearchParams(hashStr.includes("?") ? hashStr.split("?")[1] : hashStr);
+              t = hashParams.get("reset_token") || hashParams.get("token");
+            }
+          }
+          return t || "";
+        } catch (e) {
+          return "";
+        }
+      });
+
       if (!user) {
+        if (resetToken) {
+          return (
+            <ResetPasswordScreen
+              token={resetToken}
+              onComplete={() => {
+                setResetToken("");
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }}
+              triggerAlert={triggerAlert}
+            />
+          );
+        }
         return <LoginScreen onLoginSuccess={handleLoginSuccess} triggerAlert={triggerAlert} />;
       }
+
 
       if (user.role === "super_admin") {
         return (
@@ -6464,36 +6494,13 @@
       );
     }
 
-    // Forgot Password Modal Component (4 Steps)
+    // Forgot Password Modal Component
     function ForgotPasswordModal({ onClose, triggerAlert }) {
-      const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password, 4: Success
       const [email, setEmail] = useState("");
-      const [otp, setOtp] = useState("");
-      const [newPassword, setNewPassword] = useState("");
-      const [confirmPassword, setConfirmPassword] = useState("");
       const [loading, setLoading] = useState(false);
-      const [otpExpiry, setOtpExpiry] = useState(600); // 10 minutes (600s)
-      const [resendCooldown, setResendCooldown] = useState(60);
+      const [submitted, setSubmitted] = useState(false);
 
-      // Countdown timers for Step 2
-      useEffect(() => {
-        let timer;
-        if (step === 2) {
-          timer = setInterval(() => {
-            setOtpExpiry((prev) => (prev > 0 ? prev - 1 : 0));
-            setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
-          }, 1000);
-        }
-        return () => clearInterval(timer);
-      }, [step]);
-
-      const formatTime = (seconds) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-      };
-
-      const handleSendCode = async (e) => {
+      const handleSendLink = async (e) => {
         e.preventDefault();
         if (!email.trim()) {
           triggerAlert("error", "Please enter your email address.");
@@ -6507,94 +6514,8 @@
             body: JSON.stringify({ email: email.trim() })
           });
           const data = await res.json();
-          triggerAlert("info", data.message || "Verification code sent to your email!");
-          setStep(2);
-          setOtpExpiry(600);
-          setResendCooldown(60);
-        } catch (err) {
-          triggerAlert("error", err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const handleVerifyOtp = async (e) => {
-        e.preventDefault();
-        if (otp.length < 6) {
-          triggerAlert("error", "Please enter the complete 6-digit OTP code.");
-          return;
-        }
-        setLoading(true);
-        try {
-          const res = await fetch("/api/auth/verify-reset-otp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email.trim(), otp: otp.trim() })
-          });
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || "Invalid or expired OTP");
-          }
-          triggerAlert("success", "OTP code verified!");
-          setStep(3);
-        } catch (err) {
-          triggerAlert("error", err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const handleResendOtp = async () => {
-        if (resendCooldown > 0) return;
-        setLoading(true);
-        try {
-          const res = await fetch("/api/auth/resend-reset-otp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email.trim() })
-          });
-          const data = await res.json();
-          triggerAlert("success", data.message || "New OTP sent!");
-          setOtp("");
-          setOtpExpiry(600);
-          setResendCooldown(60);
-        } catch (err) {
-          triggerAlert("error", err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const handleResetPassword = async (e) => {
-        e.preventDefault();
-        if (newPassword !== confirmPassword) {
-          triggerAlert("error", "Passwords do not match!");
-          return;
-        }
-
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(newPassword)) {
-          triggerAlert("error", "Password must meet all complexity requirements.");
-          return;
-        }
-
-        setLoading(true);
-        try {
-          const res = await fetch("/api/auth/reset-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: email.trim(),
-              otp: otp.trim(),
-              new_password: newPassword,
-              confirm_password: confirmPassword
-            })
-          });
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || "Failed to reset password");
-          }
-          setStep(4);
+          setSubmitted(true);
+          triggerAlert("info", data.message || "If an account exists for this email, a password reset link has been sent.");
         } catch (err) {
           triggerAlert("error", err.message);
         } finally {
@@ -6604,65 +6525,150 @@
 
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-[95%] sm:w-full max-w-md glass-panel p-8 rounded-3xl border border-white/10 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-thin">
+          <div className="w-[95%] sm:w-full max-w-md glass-panel p-8 rounded-3xl border border-white/10 space-y-6 relative overflow-hidden">
             {/* Header */}
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <h3 className="text-lg font-bold font-montserrat text-white">Reset Password</h3>
-              <button onClick={onClose} className="text-slate-400 hover:text-white text-sm font-bold flex items-center justify-center cursor-pointer"><Icon name="x" className="w-4 h-4 text-slate-400 hover:text-white transition-colors" /></button>
-            </div>
-
-            {/* Disabled Self-Service Modal Message */}
-            <div className="space-y-4 text-center py-2">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto text-2xl">
-                <Icon name="shield" className="w-5 h-5 text-purple-400" />
-              </div>
-              <h4 className="text-base font-bold text-white font-montserrat">Super Admin Managed Recovery</h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Self-service password recovery is disabled per STHX Technologies policy. Please contact your STHX Super Admin to request an account password reset.
-              </p>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
-              >
-                Close
+              <h3 className="text-lg font-bold font-montserrat text-white">Forgot Password</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-sm font-bold flex items-center justify-center cursor-pointer">
+                <Icon name="x" className="w-4 h-4 text-slate-400 hover:text-white transition-colors" />
               </button>
             </div>
 
-            {/* Step 2: OTP Verification */}
-            {step === 2 && (
-              <form onSubmit={handleVerifyOtp} className="space-y-4 text-center">
+            {submitted ? (
+              <div className="space-y-4 text-center py-2">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto text-2xl">
+                  <Icon name="check" className="w-6 h-6 text-emerald-400" />
+                </div>
+                <h4 className="text-base font-bold text-white font-montserrat">Reset Link Sent</h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  If an account exists for this email, a password reset link has been sent. Please check your inbox.
+                </p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendLink} className="space-y-4">
                 <p className="text-xs text-slate-300">
-                  Enter the 6-digit code sent to <span className="text-brand-cyan font-bold font-mono">{email}</span>
+                  Enter your email address below and we will send you a link to reset your password.
                 </p>
 
-                <OtpInputBoxes value={otp} onChange={setOtp} disabled={loading} />
-
-                <div className="flex justify-between items-center text-xs px-1">
-                  <span className="text-amber-400 font-semibold font-mono">⏱️ Code expires: {formatTime(otpExpiry)}</span>
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={resendCooldown > 0 || loading}
-                    className={`font-bold uppercase tracking-wider ${resendCooldown > 0 ? 'text-slate-500 cursor-not-allowed' : 'text-brand-cyan hover:underline'}`}
-                  >
-                    {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : "Resend Code"}
-                  </button>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-brand-accent"
+                    placeholder="name@example.com"
+                    required
+                  />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading || otp.length < 6}
+                  disabled={loading}
                   className="w-full py-3 bg-brand-accent hover:bg-blue-600 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all neon-button-glow flex items-center justify-center gap-2 mt-2"
                 >
-                  {loading ? <Icon name="spinner" className="w-4 h-4 animate-spin" /> : "Verify Code"}
+                  {loading ? <Icon name="spinner" className="w-4 h-4 animate-spin" /> : "Send Password Reset Link"}
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      );
+    }
 
-            {/* Step 3: New Password */}
-            {step === 3 && (
-              <form onSubmit={handleResetPassword} className="space-y-4">
+    // Reset Password Standalone Screen
+    function ResetPasswordScreen({ token, onComplete, triggerAlert }) {
+      const [newPassword, setNewPassword] = useState("");
+      const [confirmPassword, setConfirmPassword] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [success, setSuccess] = useState(false);
+      const [errorMsg, setErrorMsg] = useState("");
+
+      const handleReset = async (e) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (newPassword !== confirmPassword) {
+          triggerAlert("error", "Passwords do not match!");
+          return;
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+          triggerAlert("error", "Password must meet all complexity requirements.");
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch("/api/auth/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token: token,
+              new_password: newPassword,
+              confirm_password: confirmPassword
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.detail || "This password reset link is invalid or has expired.");
+          }
+          setSuccess(true);
+          triggerAlert("success", "Your password has been reset successfully. You can now log in.");
+        } catch (err) {
+          setErrorMsg(err.message);
+          triggerAlert("error", err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-[#060913] flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-white/10 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 rounded-2xl bg-brand-accent/10 border border-brand-accent/20 text-brand-cyan flex items-center justify-center mx-auto text-2xl">
+                <Icon name="shield" className="w-8 h-8 text-brand-cyan" />
+              </div>
+              <h2 className="text-2xl font-bold font-montserrat text-white">Reset Password</h2>
+              <p className="text-xs text-slate-400">Enter your new password below for STHX Technologies Gym Portal.</p>
+            </div>
+
+            {success ? (
+              <div className="text-center space-y-4 py-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                  <Icon name="check" className="w-8 h-8" />
+                </div>
+                <p className="text-sm font-semibold text-emerald-400">Your password has been reset successfully. You can now log in.</p>
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  className="w-full py-3 bg-brand-accent hover:bg-blue-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all neon-button-glow"
+                >
+                  Go to Login
+                </button>
+              </div>
+            ) : errorMsg ? (
+              <div className="text-center space-y-4 py-4">
+                <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+                  <Icon name="alert" className="w-8 h-8" />
+                </div>
+                <p className="text-sm font-semibold text-rose-400">{errorMsg}</p>
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleReset} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">New Password</label>
                   <input
@@ -6691,33 +6697,17 @@
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2"
                 >
                   {loading ? <Icon name="spinner" className="w-4 h-4 animate-spin" /> : "Reset & Save Password"}
                 </button>
               </form>
             )}
-
-            {/* Step 4: Success */}
-            {step === 4 && (
-              <div className="text-center py-4 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                  <Icon name="check" className="w-8 h-8" />
-                </div>
-                <h4 className="text-lg font-bold text-white">Password Reset Successful!</h4>
-                <p className="text-xs text-slate-400">Your account password has been updated. You can now log in with your new password.</p>
-                <button
-                  onClick={onClose}
-                  className="w-full py-3 bg-brand-accent hover:bg-blue-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl neon-button-glow"
-                >
-                  Return to Login
-                </button>
-              </div>
-            )}
           </div>
         </div>
       );
     }
+
 
     // Unified Login Screen Component
     function LoginScreen({ onLoginSuccess, triggerAlert }) {
