@@ -1,31 +1,16 @@
 {
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "src/**,main.py"
-    }
-  },
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "src": "static/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "source": "/static/(.*)",
+      "destination": "/static/$1"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/static/index.html"
+      "source": "/(.*)",
+      "destination": "/static/index.html"
     }
   ]
 }
