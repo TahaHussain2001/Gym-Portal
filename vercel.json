@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "src/**,main.py"
+    }
+  },
   "builds": [
     {
       "src": "api/index.py",

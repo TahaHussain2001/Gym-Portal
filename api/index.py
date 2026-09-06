@@ -1,7 +1,10 @@
-﻿import os
+import os
 import sys
 
-# Add project root directory to python path for module imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Prepend project root directory to sys.path so Vercel runtime can find main.py and src package
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
 from main import app
+
