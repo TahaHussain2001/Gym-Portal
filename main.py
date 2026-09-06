@@ -473,9 +473,15 @@ class RefreshTokenRequest(BaseModel):
 class LogoutRequest(BaseModel):
     refresh_token: Optional[str] = None
 
+@app.options("/api/auth/login")
+@app.options("/auth/login")
+def options_login():
+    return Response(status_code=200)
+
 @app.post("/api/auth/login", dependencies=[Depends(limit_auth_requests)])
 @app.post("/auth/login", dependencies=[Depends(limit_auth_requests)])
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
+
     user_agent = request.headers.get("User-Agent", "Unknown")
     client_ip = request.client.host if request.client else "127.0.0.1"
     device_id = req.device_id or "default"
@@ -489,6 +495,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     )
     AuditService.log_action(db, result["user"]["id"], result["user"]["name"], "USER_LOGIN", f"User logged in: {req.email} (Device: {device_id})", client_ip)
     return result
+
 
 @app.post("/api/auth/register", dependencies=[Depends(limit_auth_requests)])
 @app.post("/auth/register", dependencies=[Depends(limit_auth_requests)])
