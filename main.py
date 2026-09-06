@@ -179,6 +179,77 @@ def seed_database(db: Session):
             owner_user.gym_name = default_gym.gym_name
         db.commit()
 
+    # Seed Test Super Admin (testadmin@gymportal.test)
+    test_admin = db.query(User).filter(User.email == "testadmin@gymportal.test").first()
+    if not test_admin:
+        test_admin = db.query(User).filter(User.username == "testadmin").first()
+    if not test_admin:
+        hashed_test_admin = hash_password("TestAdmin123!")
+        test_admin = User(
+            name="Test Admin",
+            username="testadmin",
+            email="testadmin@gymportal.test",
+            password=hashed_test_admin,
+            role=ROLE_SUPER_ADMIN,
+            is_verified=True
+        )
+        db.add(test_admin)
+        db.commit()
+        logger.info("Test Super Admin seeded: testadmin@gymportal.test / TestAdmin123!")
+    else:
+        test_admin.failed_login_attempts = 0
+        test_admin.lockout_until = None
+        test_admin.is_verified = True
+        db.commit()
+
+    # Seed Test Gym & Test Gym Owner (testowner@gymportal.test)
+    test_gym = db.query(Gym).filter(Gym.email == "testowner@gymportal.test").first()
+    if not test_gym:
+        test_gym = db.query(Gym).filter(Gym.gym_name == "Test Gym").first()
+    if not test_gym:
+        test_gym = Gym(
+            gym_name="Test Gym",
+            owner_name="Test Owner",
+            email="testowner@gymportal.test",
+            phone="03000000000",
+            cnic="00000-0000000-0",
+            address="123 Test Street, Test City",
+            subscription_plan="Monthly",
+            subscription_expiry=(date.today() + timedelta(days=365)).isoformat(),
+            status="Active"
+        )
+        db.add(test_gym)
+        db.commit()
+        db.refresh(test_gym)
+
+    test_owner = db.query(User).filter(User.email == "testowner@gymportal.test").first()
+    if not test_owner:
+        hashed_test_owner = hash_password("TestOwner123!")
+        test_owner = User(
+            name="Test Owner",
+            username="testowner",
+            email="testowner@gymportal.test",
+            password=hashed_test_owner,
+            role=ROLE_GYM_OWNER,
+            gym_name=test_gym.gym_name,
+            gym_id=test_gym.id,
+            phone="03000000000",
+            cnic="00000-0000000-0",
+            is_verified=True
+        )
+        db.add(test_owner)
+        db.commit()
+        logger.info("Test Gym Owner seeded: testowner@gymportal.test / TestOwner123!")
+    else:
+        test_owner.failed_login_attempts = 0
+        test_owner.lockout_until = None
+        test_owner.is_verified = True
+        if not test_owner.gym_id:
+            test_owner.gym_id = test_gym.id
+            test_owner.gym_name = test_gym.gym_name
+        db.commit()
+
+
     # Run platform revenue history backfill/seed
     try:
         RevenueService.backfill_or_seed_platform_revenue(db)
