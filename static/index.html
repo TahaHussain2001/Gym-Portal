@@ -8821,11 +8821,32 @@
                                           setActionsPos(null);
                                         } else {
                                           const rect = e.currentTarget.getBoundingClientRect();
-                                          const spaceBelow = window.innerHeight - rect.bottom;
+                                          const viewportHeight = window.innerHeight;
+                                          const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+                                          const spaceBelow = viewportHeight - rect.bottom;
                                           const spaceAbove = rect.top;
                                           const menuEstimatedHeight = 350;
+                                          const menuWidth = 256;
+
                                           const openUpward = spaceBelow < menuEstimatedHeight && spaceAbove > spaceBelow;
-                                          setActionsPos({ openUpward });
+
+                                          let topPos = 'auto';
+                                          let bottomPos = 'auto';
+                                          if (openUpward) {
+                                            bottomPos = `${viewportHeight - rect.top + 6}px`;
+                                          } else {
+                                            topPos = `${rect.bottom + 6}px`;
+                                          }
+
+                                          const calculatedLeft = rect.right - menuWidth;
+                                          const leftPos = `${Math.max(12, Math.min(calculatedLeft, viewportWidth - menuWidth - 12))}px`;
+
+                                          setActionsPos({
+                                            top: topPos,
+                                            bottom: bottomPos,
+                                            left: leftPos,
+                                            openUpward
+                                          });
                                           setOpenActionsGymId(g.id);
                                         }
                                       }}
@@ -8837,134 +8858,140 @@
                                       <span className="text-[10px] text-slate-400">▼</span>
                                     </button>
 
-                                    {openActionsGymId === g.id && actionsPos && (() => {
-                                      const todayStr = new Date().toISOString().split("T")[0];
-                                      const isSubLocked = g.status === "Active" && g.subscription_expiry && g.subscription_expiry >= todayStr;
+                                    {openActionsGymId === g.id && actionsPos && ReactDOM.createPortal(
+                                       (() => {
+                                         const todayStr = new Date().toISOString().split("T")[0];
+                                         const isSubLocked = g.status === "Active" && g.subscription_expiry && g.subscription_expiry >= todayStr;
 
-                                      return (
-                                        <>
-                                          <div 
-                                            className="fixed inset-0 z-40" 
-                                            onClick={(e) => { e.stopPropagation(); setOpenActionsGymId(null); setActionsPos(null); }} 
-                                          />
-                                          <div 
-                                            className={`actions-dropdown-menu absolute w-64 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl z-[100] p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150 max-h-[60vh] overflow-y-auto ${
-                                              actionsPos.openUpward ? "bottom-full mb-2" : "top-full mt-2"
-                                            } right-0`}
-                                          >
-                                             <button
-                                               type="button"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 setOpenActionsGymId(null);
-                                                 setSelectedGym(g);
-                                                 setShowDetailsDrawer(true);
+                                         return (
+                                           <>
+                                             <div 
+                                               className="fixed inset-0 z-[9998]" 
+                                               onClick={(e) => { e.stopPropagation(); setOpenActionsGymId(null); setActionsPos(null); }} 
+                                             />
+                                             <div 
+                                               style={{
+                                                 top: actionsPos.top,
+                                                 bottom: actionsPos.bottom,
+                                                 left: actionsPos.left
                                                }}
-                                               className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                               className="actions-dropdown-menu fixed w-64 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl z-[9999] p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150 max-h-[70vh] overflow-y-auto"
                                              >
-                                               <Icon name="eye" className="w-4 h-4 shrink-0" />
-                                               <span>View Profile & Details</span>
-                                             </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenActionsGymId(null);
+                                                    setSelectedGym(g);
+                                                    setShowDetailsDrawer(true);
+                                                  }}
+                                                  className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                                >
+                                                  <Icon name="eye" className="w-4 h-4 shrink-0" />
+                                                  <span>View Profile & Details</span>
+                                                </button>
 
-                                             <button
-                                               type="button"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 setOpenActionsGymId(null);
-                                                 handlePrintGymInvoice(g);
-                                               }}
-                                               className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                             >
-                                               <Icon name="print" className="w-4 h-4 shrink-0 text-emerald-400" />
-                                               <span>Print Invoice / Receipt</span>
-                                             </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenActionsGymId(null);
+                                                    handlePrintGymInvoice(g);
+                                                  }}
+                                                  className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                                >
+                                                  <Icon name="print" className="w-4 h-4 shrink-0 text-emerald-400" />
+                                                  <span>Print Invoice / Receipt</span>
+                                                </button>
 
-                                             <button
-                                               type="button"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 setOpenActionsGymId(null);
-                                                 handleOpenPaySubModal(g);
-                                               }}
-                                               className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                             >
-                                               <Icon name="card" className="w-4 h-4 shrink-0" />
-                                               <span>Pay Subscription & Plan</span>
-                                             </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenActionsGymId(null);
+                                                    handleOpenPaySubModal(g);
+                                                  }}
+                                                  className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                                >
+                                                  <Icon name="card" className="w-4 h-4 shrink-0" />
+                                                  <span>Pay Subscription & Plan</span>
+                                                </button>
 
-                                             <button
-                                               type="button"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 setOpenActionsGymId(null);
-                                                 handleOpenEdit(g);
-                                               }}
-                                               className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                             >
-                                               <Icon name="pencil" className="w-4 h-4 shrink-0" />
-                                               <span>Edit Gym Details</span>
-                                             </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenActionsGymId(null);
+                                                    handleOpenEdit(g);
+                                                  }}
+                                                  className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                                >
+                                                  <Icon name="pencil" className="w-4 h-4 shrink-0" />
+                                                  <span>Edit Gym Details</span>
+                                                </button>
 
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenActionsGymId(null);
-                                                handleOpenMessageModal(g);
-                                              }}
-                                              className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                            >
-                                              <Icon name="message" className="w-4 h-4 shrink-0" />
-                                              <span>In-App Direct Message</span>
-                                            </button>
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   setOpenActionsGymId(null);
+                                                   handleOpenMessageModal(g);
+                                                 }}
+                                                 className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                               >
+                                                 <Icon name="message" className="w-4 h-4 shrink-0" />
+                                                 <span>In-App Direct Message</span>
+                                               </button>
 
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenActionsGymId(null);
-                                                handleOpenWhatsappModal(g);
-                                              }}
-                                              className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                            >
-                                              <Icon name="whatsapp" className="w-4 h-4 shrink-0" />
-                                              <span>WhatsApp Direct Chat</span>
-                                            </button>
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   setOpenActionsGymId(null);
+                                                   handleOpenWhatsappModal(g);
+                                                 }}
+                                                 className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                               >
+                                                 <Icon name="whatsapp" className="w-4 h-4 shrink-0" />
+                                                 <span>WhatsApp Direct Chat</span>
+                                               </button>
 
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenActionsGymId(null);
-                                                handleToggleStatus(g);
-                                              }}
-                                              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer ${
-                                                g.status === "Suspended"
-                                                  ? "actions-dropdown-item"
-                                                  : "actions-dropdown-danger"
-                                              }`}
-                                            >
-                                              <Icon name={g.status === "Suspended" ? "check-circle" : "ban"} className="w-4 h-4 shrink-0" />
-                                              <span>{g.status === "Suspended" ? "Activate Gym" : "Suspend Gym"}</span>
-                                            </button>
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   setOpenActionsGymId(null);
+                                                   handleToggleStatus(g);
+                                                 }}
+                                                 className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                                                   g.status === "Suspended"
+                                                     ? "actions-dropdown-item"
+                                                     : "actions-dropdown-danger"
+                                                 }`}
+                                               >
+                                                 <Icon name={g.status === "Suspended" ? "check-circle" : "ban"} className="w-4 h-4 shrink-0" />
+                                                 <span>{g.status === "Suspended" ? "Activate Gym" : "Suspend Gym"}</span>
+                                               </button>
 
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenActionsGymId(null);
-                                                setSelectedGym(g);
-                                                setShowResetPasswordModal(true);
-                                              }}
-                                              className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
-                                            >
-                                              <Icon name="key" className="w-[18px] h-[18px] text-slate-400 dark:text-slate-400 group-hover:text-brand-accent transition-colors" />
-                                              <span>Reset Owner Password</span>
-                                            </button>
-                                          </div>
-                                        </>
-                                      );
-                                    })()}
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   setOpenActionsGymId(null);
+                                                   setSelectedGym(g);
+                                                   setShowResetPasswordModal(true);
+                                                 }}
+                                                 className="actions-dropdown-item w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer"
+                                               >
+                                                 <Icon name="key" className="w-[18px] h-[18px] text-slate-400 dark:text-slate-400 group-hover:text-brand-accent transition-colors" />
+                                                 <span>Reset Owner Password</span>
+                                               </button>
+                                             </div>
+                                           </>
+                                         );
+                                       })(),
+                                       document.body
+                                     )}
                                   </div>
                                 </td>
                                </tr>
