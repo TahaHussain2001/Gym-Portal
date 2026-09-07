@@ -8781,8 +8781,8 @@
                           ) : gyms.length === 0 ? (
                             <tr><td colSpan="6" className="py-12 text-center text-slate-500">No Gym clients found matching your filter criteria.</td></tr>
                           ) : (
-                            gyms.map((g) => (
-                              <tr key={g.id} className="hover:bg-slate-900/50 transition-colors">
+                             gyms.map((g) => (
+                              <tr key={g.id} className={`hover:bg-slate-900/50 transition-colors ${openActionsGymId === g.id ? "relative z-30" : ""}`}>
                                 <td className="py-4 px-4 cursor-pointer" onClick={() => { setSelectedGym(g); setShowDetailsDrawer(true); }}>
                                   <div className="font-bold text-white text-sm hover:text-brand-cyan transition-colors">{g.gym_name}</div>
                                   <div className="text-[10px] text-slate-400">{g.address || "No physical address specified"}</div>
@@ -8811,7 +8811,7 @@
                                   </span>
                                 </td>
                                 <td className="py-4 px-4 text-right">
-                                  <div className="relative inline-block text-right">
+                                  <div className={`relative inline-block text-right ${openActionsGymId === g.id ? "z-40" : ""}`}>
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -8848,7 +8848,7 @@
                                             onClick={(e) => { e.stopPropagation(); setOpenActionsGymId(null); setActionsPos(null); }} 
                                           />
                                           <div 
-                                            className={`actions-dropdown-menu absolute w-64 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150 max-h-[60vh] overflow-y-auto ${
+                                            className={`actions-dropdown-menu absolute w-64 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl z-[100] p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150 max-h-[60vh] overflow-y-auto ${
                                               actionsPos.openUpward ? "bottom-full mb-2" : "top-full mt-2"
                                             } right-0`}
                                           >
