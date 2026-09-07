@@ -4540,6 +4540,15 @@
             } else {
               setCustomRegFee(0);
             }
+
+            // Default payment date to member's expected next due/expiry date if available
+            const expectedDate = memDetails?.current_membership?.next_due_date || memDetails?.current_membership?.expiry_date;
+            if (expectedDate) {
+              const formattedDate = String(expectedDate).split("T")[0];
+              if (formattedDate) {
+                setPaymentDate(formattedDate);
+              }
+            }
           })
           .catch(err => triggerAlert("error", err.message))
           .finally(() => setLoading(false));
