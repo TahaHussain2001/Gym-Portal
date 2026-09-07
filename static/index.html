@@ -7114,6 +7114,7 @@
       const [statusFilter, setStatusFilter] = useState("all");
       const [planFilter, setPlanFilter] = useState("all");
       const [openActionsGymId, setOpenActionsGymId] = useState(null);
+      const [actionsPos, setActionsPos] = useState(null);
 
       const saRevenueChartRef = useRef(null);
       const saPlanChartRef = useRef(null);
@@ -8815,7 +8816,21 @@
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setOpenActionsGymId(openActionsGymId === g.id ? null : g.id);
+                                        if (openActionsGymId === g.id) {
+                                          setOpenActionsGymId(null);
+                                          setActionsPos(null);
+                                        } else {
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          const spaceBelow = window.innerHeight - rect.bottom;
+                                          const menuEstimatedHeight = 350;
+                                          const openUpward = spaceBelow < menuEstimatedHeight && rect.top > menuEstimatedHeight;
+                                          setActionsPos({
+                                            top: openUpward ? 'auto' : `${rect.bottom + 6}px`,
+                                            bottom: openUpward ? `${window.innerHeight - rect.top + 6}px` : 'auto',
+                                            right: `${window.innerWidth - rect.right}px`
+                                          });
+                                          setOpenActionsGymId(g.id);
+                                        }
                                       }}
                                       className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-950 border border-slate-700 dark:border-slate-800 text-xs font-bold text-slate-200 dark:text-slate-300 hover:text-white hover:border-brand-accent transition-all flex items-center justify-between gap-2 shadow-sm cursor-pointer ml-auto"
                                     >
@@ -8825,17 +8840,24 @@
                                       <span className="text-[10px] text-slate-400">▼</span>
                                     </button>
 
-                                    {openActionsGymId === g.id && (() => {
+                                    {openActionsGymId === g.id && actionsPos && (() => {
                                       const todayStr = new Date().toISOString().split("T")[0];
                                       const isSubLocked = g.status === "Active" && g.subscription_expiry && g.subscription_expiry >= todayStr;
 
                                       return (
                                         <>
                                           <div 
-                                            className="fixed inset-0 z-30" 
-                                            onClick={(e) => { e.stopPropagation(); setOpenActionsGymId(null); }} 
+                                            className="fixed inset-0 z-40" 
+                                            onClick={(e) => { e.stopPropagation(); setOpenActionsGymId(null); setActionsPos(null); }} 
                                           />
-                                           <div className="actions-dropdown-menu absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150">
+                                          <div 
+                                            style={{
+                                              top: actionsPos.top,
+                                              bottom: actionsPos.bottom,
+                                              right: actionsPos.right
+                                            }}
+                                            className="actions-dropdown-menu fixed w-64 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 text-left font-sans animate-in fade-in duration-150 max-h-[80vh] overflow-y-auto"
+                                          >
                                              <button
                                                type="button"
                                                onClick={(e) => {
