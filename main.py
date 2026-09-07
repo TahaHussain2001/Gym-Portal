@@ -1640,6 +1640,7 @@ class PaySubscriptionRequest(BaseModel):
     amount_paid: float
     payment_method: Optional[str] = "Cash"
     notes: Optional[str] = None
+    subscription_start_date: Optional[str] = None
 
 @app.post("/api/super-admin/gyms/{gym_id}/pay-subscription")
 def pay_gym_subscription(
@@ -1658,7 +1659,8 @@ def pay_gym_subscription(
         amount_paid=req.amount_paid,
         payment_method=req.payment_method or "Cash",
         notes=req.notes,
-        ip_address=request.client.host if request.client else "127.0.0.1"
+        ip_address=request.client.host if request.client else "127.0.0.1",
+        subscription_start_date=req.subscription_start_date
     )
 
 @app.post("/api/super-admin/gyms/{gym_id}/message")

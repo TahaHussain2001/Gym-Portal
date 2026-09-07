@@ -7154,7 +7154,8 @@
         subscription_plan: "Monthly",
         amount_paid: 25000,
         payment_method: "Cash",
-        notes: ""
+        notes: "",
+        subscription_start_date: new Date().toISOString().split("T")[0]
       });
 
       const handleOpenPaySubModal = (gym) => {
@@ -7164,11 +7165,17 @@
         if (currentPlan.toLowerCase().includes("6 month")) defaultAmount = 135000;
         if (currentPlan.toLowerCase().includes("1 year") || currentPlan.toLowerCase().includes("year")) defaultAmount = 240000;
 
+        const todayStr = new Date().toISOString().split("T")[0];
+        // Default start date = current subscription expiry (so renewal continues from there).
+        // If no expiry exists, fall back to today.
+        const defaultStartDate = (gym.subscription_expiry && gym.subscription_expiry.trim()) ? gym.subscription_expiry : todayStr;
+
         setPaySubForm({
           subscription_plan: currentPlan,
           amount_paid: defaultAmount,
           payment_method: "Cash",
-          notes: ""
+          notes: "",
+          subscription_start_date: defaultStartDate
         });
         setShowPaySubModal(true);
       };
@@ -7219,7 +7226,8 @@
               subscription_plan: paySubForm.subscription_plan,
               amount_paid: parseFloat(paySubForm.amount_paid) || 0,
               payment_method: paySubForm.payment_method,
-              notes: paySubForm.notes
+              notes: paySubForm.notes,
+              subscription_start_date: paySubForm.subscription_start_date
             })
           });
           if (!res.ok) {
@@ -10304,6 +10312,45 @@
                         className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
+
+                    {/* Subscription Start Date + New Expiry Preview */}
+                    {!isSubLocked && (() => {
+                      // Compute new expiry preview from the selected start date + plan duration
+                      const planStr = (paySubForm.subscription_plan || "").toLowerCase();
+                      const planDays = planStr.includes("6 month") || planStr.includes("half year") ? 180
+                        : (planStr.includes("1 year") || planStr.includes("year") || planStr.includes("annual")) ? 365
+                        : 30;
+                      let previewExpiry = "";
+                      if (paySubForm.subscription_start_date) {
+                        try {
+                          const sd = new Date(paySubForm.subscription_start_date + "T00:00:00");
+                          sd.setDate(sd.getDate() + planDays);
+                          previewExpiry = sd.toISOString().split("T")[0];
+                        } catch (_) {}
+                      }
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Subscription Start Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={paySubForm.subscription_start_date}
+                              onChange={(e) => setPaySubForm({ ...paySubForm, subscription_start_date: e.target.value })}
+                              className="w-full px-4 py-2.5 bg-slate-950 border border-purple-500/40 rounded-2xl text-xs text-purple-200 font-mono font-bold focus:outline-none focus:border-purple-400"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Defaults to current expiry date. Change if needed.</p>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">New Expiry Date (Preview)</label>
+                            <div className="w-full px-4 py-2.5 bg-slate-950 border border-emerald-500/30 rounded-2xl text-xs text-emerald-400 font-mono font-bold select-none">
+                              {previewExpiry || "—"}
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Start Date + {planDays} days</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {!isSubLocked && (
                       <div className="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-[11px] text-purple-200">

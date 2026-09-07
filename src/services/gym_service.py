@@ -349,7 +349,8 @@ class GymService:
         amount_paid: float,
         payment_method: str = "Cash",
         notes: Optional[str] = None,
-        ip_address: str = "127.0.0.1"
+        ip_address: str = "127.0.0.1",
+        subscription_start_date: Optional[str] = None
     ) -> Dict[str, Any]:
         gym = db.query(Gym).filter(Gym.id == gym_id).first()
         if not gym:
@@ -364,13 +365,22 @@ class GymService:
         elif gym.subscription_expiry and gym.subscription_expiry < today.isoformat():
             computed_status = "Pending Fees"
 
+        # Determine subscription base date from admin-supplied start date.
+        # Payment date (today) is intentionally separate from subscription start date.
+        if subscription_start_date:
+            try:
+                base_date = datetime.strptime(subscription_start_date.strip(), "%Y-%m-%d").date()
+            except Exception:
+                base_date = today
+        else:
+            # Fallback: use existing expiry date (regardless of whether it's past/future)
+            try:
+                base_date = datetime.strptime(gym.subscription_expiry, "%Y-%m-%d").date()
+            except Exception:
+                base_date = today
+
         # Update Subscription Plan
         gym.subscription_plan = subscription_plan.strip()
-        try:
-            curr_exp_date = datetime.strptime(gym.subscription_expiry, "%Y-%m-%d").date()
-            base_date = curr_exp_date if curr_exp_date > today else today
-        except Exception:
-            base_date = today
 
         plan_name = subscription_plan.strip().lower()
         if "6 month" in plan_name or "half year" in plan_name:
