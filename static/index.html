@@ -4016,8 +4016,8 @@
 
       if (loading) {
         return (
-          <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-            <div className="w-[95%] sm:w-full max-w-lg glass-panel h-full p-8 flex items-center justify-center max-h-[90vh] overflow-y-auto scrollbar-thin">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-stretch justify-center sm:justify-end bg-black/60 backdrop-blur-sm">
+            <div className="w-full sm:w-full max-w-lg glass-panel h-auto sm:h-full max-h-[92dvh] sm:max-h-full p-8 flex items-center justify-center border-t sm:border-t-0 sm:border-l border-white/10 rounded-t-3xl sm:rounded-none">
               <Icon name="spinner" className="w-8 h-8 text-brand-accent animate-spin" />
             </div>
           </div>
@@ -4025,8 +4025,8 @@
       }
 
       return (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-all no-print">
-          <div className="w-[95%] sm:w-full max-w-lg glass-panel h-full p-8 overflow-y-auto space-y-6 border-l border-white/10 max-h-[90vh] overflow-y-auto scrollbar-thin">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-stretch justify-center sm:justify-end bg-black/60 backdrop-blur-sm transition-all no-print">
+          <div className="w-full sm:w-full max-w-lg glass-panel h-auto sm:h-full max-h-[92dvh] sm:max-h-full p-5 sm:p-8 overflow-y-auto space-y-6 border-t sm:border-t-0 sm:border-l border-white/10 scrollbar-thin rounded-t-3xl sm:rounded-none">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <span className="text-xs font-mono font-bold text-brand-cyan">{member?.member_code}</span>
