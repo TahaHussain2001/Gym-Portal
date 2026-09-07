@@ -639,7 +639,6 @@ def export_attendance_csv(db: Session = Depends(get_db), current_user = Depends(
 class PlanCreateEdit(BaseModel):
     plan_name: str
     price: float
-    registration_fee: float = 1000.0
     duration_days: int = 30
     is_active: bool = True
 
@@ -650,7 +649,7 @@ def get_plans(db: Session = Depends(get_db)):
         "id": p.id,
         "plan_name": p.plan_name,
         "price": p.price,
-        "registration_fee": p.registration_fee,
+        "registration_fee": 0.0,
         "duration_days": p.duration_days,
         "is_active": p.is_active
     } for p in plans]
@@ -661,7 +660,13 @@ def create_plan(plan: PlanCreateEdit, request: Request, db: Session = Depends(ge
     if existing:
         raise HTTPException(status_code=400, detail="Plan name already exists.")
         
-    new_plan = MembershipPlan(**plan.dict())
+    new_plan = MembershipPlan(
+        plan_name=plan.plan_name,
+        price=plan.price,
+        registration_fee=0.0,
+        duration_days=plan.duration_days,
+        is_active=plan.is_active
+    )
     db.add(new_plan)
     db.commit()
     db.refresh(new_plan)
@@ -677,7 +682,7 @@ def update_plan(plan_id: int, plan: PlanCreateEdit, request: Request, db: Sessio
         
     p.plan_name = plan.plan_name
     p.price = plan.price
-    p.registration_fee = plan.registration_fee
+    p.registration_fee = 0.0
     p.duration_days = plan.duration_days
     p.is_active = plan.is_active
     db.commit()
@@ -696,6 +701,7 @@ class MemberCreate(BaseModel):
     plan_id: Optional[int] = None
     notes: Optional[str] = None
     include_registration_fee: bool = True
+    registration_fee: Optional[float] = None
     payment_method: str = "Cash"
 
 class MemberEdit(BaseModel):
@@ -803,8 +809,13 @@ def create_member(member: MemberCreate, request: Request, db: Session = Depends(
                 db.flush()  # get new_ms.id before creating Payment
                 new_member.status = STATUS_ACTIVE
 
-                # Auto-record initial payment at registration
-                reg_fee = plan.registration_fee if member.include_registration_fee else 0.0
+                # Auto-record initial payment at registration (completely decoupled from plan)
+                if member.registration_fee is not None and float(member.registration_fee) >= 0:
+                    reg_fee = float(member.registration_fee)
+                elif member.include_registration_fee:
+                    reg_fee = 1000.0
+                else:
+                    reg_fee = 0.0
                 latest_p = apply_for_update(db.query(Payment).order_by(Payment.id.desc()), db).first()
                 last_id = latest_p.id if latest_p else 0
                 receipt_num = PaymentService.generate_receipt_number(last_id, today_str)
